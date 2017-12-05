@@ -38,7 +38,9 @@ test bool testDebug()
 /*
  * 1. At fields
  */ 
-Expression desugar((Expression)`@<Id x>`) = /* you should replace this */ dummyExp();
+Expression desugar((Expression)`@<Id x>`){
+	return (Expression) `this.<Id x>`;
+}
 
 test bool testAtField() 
   = desugar((Expression)`@name`) 
@@ -48,11 +50,9 @@ test bool testAtField()
 /*
  * 2. Twitter search expressions
  */
-Expression desugar((Expression)`@(<{Expression ","}* es>)`) 
-  = /* you should replace this */ dummyExp();
-
-Expression desugar((Expression)`#(<{Expression ","}* es>)`)
-  = /* you should replace this */ dummyExp();  
+Expression desugar((Expression)`@(<{Expression ","}* es>)`) {
+	return (Expression) `searchAt(<{Expression ","}* es>)`;
+}
 
 test bool testTwitter()
   = desugar((Expression)`@("obama")`) 
@@ -62,7 +62,9 @@ test bool testTwitter()
  * 3. Don't statement
  */
 
-Statement desugar((Statement)`dont <Statement _>`) = /* you should replace this */ dummyStat();
+Statement desugar((Statement)`dont <Statement _>`){
+	return (Statement) `;`;
+}
 
 test bool testDont()
   = desugar((Statement)`dont if (x == 3) print(x);`) 
@@ -72,8 +74,9 @@ test bool testDont()
  * 4. Todo statement
  */
 
-Statement desugar((Statement)`todo <String s>;`) 
-  = /* you should replace this */ dummyStat(); 
+Statement desugar((Statement)`todo <String s>;`){
+	return (Statement) `console.log(/"TODO: /" + <String s>;`;
+}
  
  
 test bool testTodo()
@@ -84,8 +87,9 @@ test bool testTodo()
  * 5. Unless statement
  */
  
-Statement desugar((Statement)`unless (<Expression cond>) <Statement body>`)
-  = /* you should replace this */ dummyStat();
+Statement desugar((Statement)`unless (<Expression cond>) <Statement body>`){
+	return (Statement) `if (!(<Expression cond>)) <Statement body>`;
+}
  
 
 test bool testUnless()

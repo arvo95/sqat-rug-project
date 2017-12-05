@@ -4,7 +4,7 @@ import IO;
 import ParseTree;
 import String;
 import util::FileSystem;
-import sqat::series1::Comments;
+//import sqat::series1::Comments;
 
 /* 
 
@@ -13,7 +13,7 @@ Count Source Lines of Code (SLOC) per file:
 - ignore empty lines
 
 Tips
-- use locations with the project scheme: e.g. |project:///jpacman/...|
+- use locations with the project scheme: e.g. |project://jpacman/...|
 - functions to crawl directories can be found in util::FileSystem
 - use the functions in IO to read source files
 
@@ -39,7 +39,38 @@ alias SLOC = map[loc file, int sloc];
 
 SLOC sloc(loc project) {
   SLOC result = ();
-  // implement here
-  return result;
-}             
+  mainfiles = crawl(project);
+  return traverseDirs(mainfiles);
+}         
+
+SLOC traverseDirs(FileSystem fs){
+	switch(fs){
+		case directory(loc l, set[FileSystem] kids): {
+			SLOC file_lines = ();
+			for (FileSystem kid <- kids) {
+				file_lines + traverseDirs(kid);
+			}
+			return file_lines;
+		}
+		case file(loc l): {
+			print(l:size(readFileLines(l)));
+			return (l:size(readFileLines(l)));
+		}
+	}	
+}
+
+int countLines(FileSystem file){
+	
+}
+
+int countDirs(FileSystem fs)
+= (0 | it + 1 | /directory(_, _) := fs );
+// := means matching one pattern with another
+// / means at any depth of recursion
+
+void main() {
+	xs = {<1,2>, <2,3>};
+	lolx = (1:2, 2:3);
+	
+}
              
