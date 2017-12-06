@@ -48,12 +48,11 @@ SLOC traverseDirs(FileSystem fs){
 		case directory(loc l, set[FileSystem] kids): {
 			SLOC file_lines = ();
 			for (FileSystem kid <- kids) {
-				file_lines + traverseDirs(kid);
+				file_lines = file_lines + traverseDirs(kid);
 			}
 			return file_lines;
 		}
 		case file(loc l): {
-			print(l:size(readFileLines(l)));
 			return (l:size(readFileLines(l)));
 		}
 	}	
