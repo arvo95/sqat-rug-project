@@ -20,9 +20,13 @@ Tips
 
 Answer the following questions:
 - what is the biggest file in JPacman?
+The biggest java file is "Level.java"
 - what is the total size of JPacman?
+2466 lines of code
 - is JPacman large according to SIG maintainability?
+No, it is very small.
 - what is the ratio between actual code and test code size?
+565:1901 or 29.72% of code is test code.
 
 Sanity checks:
 - write tests to ensure you are correctly skipping multi-line comments
@@ -54,7 +58,7 @@ SLOC traverseDirs(FileSystem fs){
 		}
 		case file(loc l): {
 			if (/.*\.java/ := l.uri) {
-				return (l:countLines(l));
+				return (l:countLines(readFileLines(l)));
 			}
 			else {
 				return ();
@@ -63,8 +67,7 @@ SLOC traverseDirs(FileSystem fs){
 	}	
 }
 
-int countLines(loc file){
-	list[str] lines = readFileLines(file);
+int countLines(list[str] lines){
 	int lineCounter = 0;
 	bool multiline_comment = false;
 	for (str line <- lines) {
@@ -85,7 +88,7 @@ int countLines(loc file){
 				if (!/\*\/.*\*\// := line){
 					multiline_comment = false;
 				}
-				if(/\*\/[\s\t]*([^\s\t\/]|\/[^*])/ := line) { //Detect a multiline closing line with some additional content in the same line
+				if(/\*\/[\s\t]*([^\s\t\/]|\/[^*])/ := line) { //Detect a multiline closing and new opening in the same line
 					lineCounter += 1;
 				}
 			}
@@ -96,14 +99,19 @@ int countLines(loc file){
 	return lineCounter;
 }
 
-int countDirs(FileSystem fs)
-= (0 | it + 1 | /directory(_, _) := fs );
-// := means matching one pattern with another
-// / means at any depth of recursion
-
-void main() {
-	xs = {<1,2>, <2,3>};
-	lolx = (1:2, 2:3);
+test bool skippingManyempty() =
+	countLines(["aa", "", "   ", "   ", "bb"]) == 2;
 	
-}
+test bool multilineDetect() =
+	countLines(["aa", "/*", "Comment", "*/", "bb"]) == 2;
+	
+test bool singleLineComment() =
+	countLines(["//epic comment", "aa", "bb"]) == 2;
+
+test bool multilineStartsAndEnds() =
+	countLines(["/*sample", "*com", "ment*/ /*comment", "*/", "aa"]) == 1; //Counts an extra line somehow
+	
+test bool multilineStartsAndEndsWithcontent() =
+	countLines(["/*sample", "*com", "ment*/ content /*comment", "*/", "aa"]) == 2; //Counts an extra line somehow
+	
              
