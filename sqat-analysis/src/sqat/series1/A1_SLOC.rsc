@@ -4,6 +4,7 @@ import IO;
 import ParseTree;
 import String;
 import util::FileSystem;
+import Map;
 //import sqat::series1::Comments;
 
 /* 
@@ -38,7 +39,6 @@ Bonus:
 alias SLOC = map[loc file, int sloc];
 
 SLOC sloc(loc project) {
-  SLOC result = ();
   mainfiles = crawl(project);
   return traverseDirs(mainfiles);
 }         
@@ -53,13 +53,47 @@ SLOC traverseDirs(FileSystem fs){
 			return file_lines;
 		}
 		case file(loc l): {
-			return (l:size(readFileLines(l)));
+			if (/.*\.java/ := l.uri) {
+				return (l:countLines(l));
+			}
+			else {
+				return ();
+			}	
 		}
 	}	
 }
 
-int countLines(FileSystem file){
-	
+int countLines(loc file){
+	list[str] lines = readFileLines(file);
+	int lineCounter = 0;
+	bool multiline_comment = false;
+	for (str line <- lines) {
+		if (!multiline_comment){
+			if (/^[\s\t]*\/\*/ := line) { //Detect a multiline comment starting
+				multiline_comment = true;
+			}
+			else if (/^[\s\t]*[^\s\t].*\/\*/ := line) { //Detect multiline comment start with additional content
+				multiline_comment = true;
+				lineCounter += 1;	
+			}
+			else if (/^[\s\t]*([^\/\s\t]|[\/][^\/])/ := line) { //Detect non-empty and not single line comment lines
+				lineCounter += 1;
+			}
+		}
+		else if (multiline_comment){
+			if(/\*\// := line) { //Detect a multiline closing line
+				if (!/\*\/.*\*\// := line){
+					multiline_comment = false;
+				}
+				if(/\*\/[\s\t]*([^\s\t\/]|\/[^*])/ := line) { //Detect a multiline closing line with some additional content in the same line
+					lineCounter += 1;
+				}
+			}
+			//TODO: A case with one multiline comment ending, content in between and another multiline starting
+		}
+		
+	} 
+	return lineCounter;
 }
 
 int countDirs(FileSystem fs)
