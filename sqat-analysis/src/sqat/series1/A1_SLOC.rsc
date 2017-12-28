@@ -99,19 +99,19 @@ int countLines(list[str] lines){
 	return lineCounter;
 }
 
-test bool skippingManyempty() =
-	countLines(["aa", "", "   ", "   ", "bb"]) == 2;
+test bool skippingManyempty()
+	= countLines(["aa", "", "   ", "   ", "bb"]) == 2;
 	
-test bool multilineDetect() =
-	countLines(["aa", "/*", "Comment", "*/", "bb"]) == 2;
+test bool multilineDetect()
+	= countLines(["aa", "/*", "Comment", "*/", "bb"]) == 2;
 	
-test bool singleLineComment() =
-	countLines(["//epic comment", "aa", "bb"]) == 2;
+test bool singleLineComment()
+	= countLines(["//epic comment", "aa", "bb"]) == 2;
 
-test bool multilineStartsAndEnds() =
-	countLines(["/*sample", "*com", "ment*/ /*comment", "*/", "aa"]) == 1; //Counts an extra line somehow
+test bool multilineStartsAndEnds()
+	= countLines(["/*sample", "*com", "ment*/ /*comment", "*/", "aa"]) == 1; //Counts an extra line somehow
 	
-test bool multilineStartsAndEndsWithcontent() =
-	countLines(["/*sample", "*com", "ment*/ content /*comment", "*/", "aa"]) == 2; //Counts an extra line somehow
+test bool multilineStartsAndEndsWithcontent()
+	= countLines(["/*sample", "*com", "ment*/ content /*comment", "*/", "aa"]) == 2; //Counts an extra line somehow
 	
              

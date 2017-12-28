@@ -2,6 +2,11 @@ module sqat::series1::A3_CheckStyle
 
 import Java17ish;
 import Message;
+import util::ResourceMarkers;
+import IO;
+import util::FileSystem;
+import ParseTree;
+import util::ValueUI;
 
 /*
 
@@ -9,6 +14,8 @@ Assignment: detect style violations in Java source code.
 Select 3 checks out of this list:  http://checkstyle.sourceforge.net/checks.html
 Compute a set[Message] (see module Message) containing 
 check-style-warnings + location of  the offending source fragment. 
+
+Chosen checks: LineLength, AvoidEscapedUnicodeCharacters, ArrayTrailingComma
 
 Plus: invent your own style violation or code smell and write a checker.
 
@@ -41,11 +48,92 @@ Bonus:
 
 */
 
-set[Message] checkStyle(loc project) {
-  set[Message] result = {};
-  
-  // to be done
-  // implement each check in a separate function called here. 
-  
-  return result;
+void main(loc project) {
+  addMessageMarkers(checkStyle(project));
 }
+
+set[loc] getFiles(FileSystem fs) {
+	set[loc] files = {};
+	switch(fs){
+		case directory(loc l, set[FileSystem] kids): {
+			for (FileSystem kid <- kids) {
+				files = files + getFiles(kid);
+			}
+			return files;
+		}
+		case file(loc l): {
+			return {l};
+		}
+	}
+	return files;
+}
+
+set[Message] checkStyle(loc project) {
+  map[loc, str] result = ();
+  for(loc location <- getFiles(crawl(project)), location.extension == "java") {
+  	 result += extractAvoidEscapedUnicodeCharacters(parse(#start[CompilationUnit], location, allowAmbiguity=true));
+  }
+  
+  return synthesizeAvoidEscapedUnicodeCharacters(analyzeAvoidEscapedUnicodeCharacters(result));
+}
+
+/*extractLineLength() {
+
+}*/
+
+/*analyzeLineLength() {
+
+}*/
+
+/*set[Message] synthesizeLineLength(list[str] lines) {
+
+}*/
+
+/*extractArrayTrailingComma() {
+
+}*/
+
+/*analyzeArrayTrailingComma() {
+
+}*/
+
+/*set[Message] synthesizeArrayTrailingComma(list[str] lines) {
+
+}*/
+
+map[loc, str] extractAvoidEscapedUnicodeCharacters(start[CompilationUnit] cu) {
+	map[loc, str] result = ();
+	visit(cu) {
+		case literal:(StringLiteral)`<LEX_StringLiteral lex>`: {
+			result += (literal@\loc : unparse(lex));
+			}
+	}
+	return result;
+}
+
+/*map[loc, str] extractAvoidEscapedUnicodeCharacters() {
+
+}*/
+
+map[loc, str] analyzeAvoidEscapedUnicodeCharacters(map[loc, str] strings)
+	= (l: strings[l] | loc l <- strings, /\/u[a-z0-9]{4}/ := strings[l]);
+
+
+set[Message] synthesizeAvoidEscapedUnicodeCharacters(map[loc, str] strings)
+	= { warning("Escaped unicode character detected!", l) | l <- strings };
+
+
+/*extractCustomCheck() {
+
+}*/
+
+/*analyzeCustomCheck() {
+
+}*/
+
+/*set[Message] synthesizeCustomCheck(list[str] lines) {
+
+}*/
+
+test bool UnicodeCharacter()
+	= analyzeAvoidEscapedUnicodeCharacters((|project://1|:"No unicode here", |project://2|:"   /uaf48coolbeans  ")) == (|project://2|:"   /uaf48coolbeans  ");
