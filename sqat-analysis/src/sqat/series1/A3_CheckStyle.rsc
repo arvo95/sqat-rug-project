@@ -49,7 +49,7 @@ Bonus:
 */
 
 void main(loc project) {
-  addMessageMarkers(checkStyle(project));
+  text(checkStyle(project));
 }
 
 set[loc] getFiles(FileSystem fs) {
@@ -69,12 +69,18 @@ set[loc] getFiles(FileSystem fs) {
 }
 
 set[Message] checkStyle(loc project) {
-  map[loc, str] result = ();
+  map[loc, str] unicodeExtracts = ();
+  map[loc, ArrayInit] trailingCommaExtracts = ();
+  set[Message] results = {};
+  
   for(loc location <- getFiles(crawl(project)), location.extension == "java") {
-  	 result += extractAvoidEscapedUnicodeCharacters(parse(#start[CompilationUnit], location, allowAmbiguity=true));
+  	 unicodeExtracts += extractAvoidEscapedUnicodeCharacters(parse(#start[CompilationUnit], location, allowAmbiguity=true));
+  	 trailingCommaExtracts += extractArrayTrailingComma(parse(#start[CompilationUnit], location, allowAmbiguity=true));
   }
   
-  return synthesizeAvoidEscapedUnicodeCharacters(analyzeAvoidEscapedUnicodeCharacters(result));
+  results = synthesizeAvoidEscapedUnicodeCharacters(analyzeAvoidEscapedUnicodeCharacters(unicodeExtracts));
+  results += synthesizeArrayTrailingComma(trailingCommaExtracts);
+  return results;
 }
 
 /*extractLineLength() {
@@ -89,17 +95,22 @@ set[Message] checkStyle(loc project) {
 
 }*/
 
-/*extractArrayTrailingComma() {
+map[loc, ArrayInit] extractArrayTrailingComma(start[CompilationUnit] cu) {
+	map[loc, ArrayInit] result = ();
+	visit(cu) {
+		case array:(ArrayInit)`{<{VarInit  ","}* var>}`: {
+			result += (array@\loc : array);
+			}
+	}
+	return result;
+}
 
-}*/
+map[loc, ArrayInit] analyzeArrayTrailingComma() {
 
-/*analyzeArrayTrailingComma() {
+}
 
-}*/
-
-/*set[Message] synthesizeArrayTrailingComma(list[str] lines) {
-
-}*/
+set[Message] synthesizeArrayTrailingComma(map[loc, ArrayInit] arrays)
+	= { warning("Array without trailing comma detected!", l) | l <- arrays };
 
 map[loc, str] extractAvoidEscapedUnicodeCharacters(start[CompilationUnit] cu) {
 	map[loc, str] result = ();
@@ -110,10 +121,6 @@ map[loc, str] extractAvoidEscapedUnicodeCharacters(start[CompilationUnit] cu) {
 	}
 	return result;
 }
-
-/*map[loc, str] extractAvoidEscapedUnicodeCharacters() {
-
-}*/
 
 map[loc, str] analyzeAvoidEscapedUnicodeCharacters(map[loc, str] strings)
 	= (l: strings[l] | loc l <- strings, /\/u[a-z0-9]{4}/ := strings[l]);
