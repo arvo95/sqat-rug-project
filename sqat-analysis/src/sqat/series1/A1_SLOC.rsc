@@ -113,5 +113,4 @@ test bool multilineStartsAndEnds()
 	
 test bool multilineStartsAndEndsWithcontent()
 	= countLines(["/*sample", "*com", "ment*/ content /*comment", "*/", "aa"]) == 2; //Counts an extra line somehow
-	
-             
+          

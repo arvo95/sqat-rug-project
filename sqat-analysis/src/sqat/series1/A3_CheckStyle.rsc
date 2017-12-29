@@ -15,9 +15,11 @@ Select 3 checks out of this list:  http://checkstyle.sourceforge.net/checks.html
 Compute a set[Message] (see module Message) containing 
 check-style-warnings + location of  the offending source fragment. 
 
-Chosen checks: LineLength, AvoidEscapedUnicodeCharacters, ArrayTrailingComma
+Chosen checks: AvoidStaticImport, AvoidEscapedUnicodeCharacters, ArrayTrailingComma
 
 Plus: invent your own style violation or code smell and write a checker.
+
+Our style violation - LongVariableNames
 
 Note: since concrete matching in Rascal is "modulo Layout", you cannot
 do checks of layout or comments (or, at least, this will be very hard).
@@ -71,29 +73,39 @@ set[loc] getFiles(FileSystem fs) {
 set[Message] checkStyle(loc project) {
   map[loc, str] unicodeExtracts = ();
   map[loc, ArrayInit] trailingCommaExtracts = ();
+  map[loc, ImportDec] staticImportExtracts = ();
+  map[loc, int] longVariableExtracts = ();
   set[Message] results = {};
   
   for(loc location <- getFiles(crawl(project)), location.extension == "java") {
   	 unicodeExtracts += extractAvoidEscapedUnicodeCharacters(parse(#start[CompilationUnit], location, allowAmbiguity=true));
   	 trailingCommaExtracts += extractArrayTrailingComma(parse(#start[CompilationUnit], location, allowAmbiguity=true));
+  	 staticImportExtracts += extractAvoidStaticImport(parse(#start[CompilationUnit], location, allowAmbiguity=true));
   }
   
   results = synthesizeAvoidEscapedUnicodeCharacters(analyzeAvoidEscapedUnicodeCharacters(unicodeExtracts));
   results += synthesizeArrayTrailingComma(trailingCommaExtracts);
+  results += synthesizeAvoidStaticImport(staticImportExtracts);
   return results;
 }
 
-/*extractLineLength() {
+map[loc, ImportDec] extractAvoidStaticImport(start[CompilationUnit] cu) {
+	map[loc, ImportDec] result = ();
+	visit(cu) {
+		case staticImport:(ImportDec)`import static <TypeName typename>.<Id identity>;`: {
+			result += (staticImport@\loc : staticImport);
+			}
+		case staticImport:(ImportDec)`import static <TypeName typename>.*;`: {
+			result += (staticImport@\loc : staticImport);
+			}
+	}
+	return result;
+}
 
-}*/
 
-/*analyzeLineLength() {
+set[Message] synthesizeAvoidStaticImport(map[loc, ImportDec] imports)
+	= { warning("Static import detected!", l) | l <- imports };
 
-}*/
-
-/*set[Message] synthesizeLineLength(list[str] lines) {
-
-}*/
 
 map[loc, ArrayInit] extractArrayTrailingComma(start[CompilationUnit] cu) {
 	map[loc, ArrayInit] result = ();
@@ -103,10 +115,6 @@ map[loc, ArrayInit] extractArrayTrailingComma(start[CompilationUnit] cu) {
 			}
 	}
 	return result;
-}
-
-map[loc, ArrayInit] analyzeArrayTrailingComma() {
-
 }
 
 set[Message] synthesizeArrayTrailingComma(map[loc, ArrayInit] arrays)
@@ -130,17 +138,17 @@ set[Message] synthesizeAvoidEscapedUnicodeCharacters(map[loc, str] strings)
 	= { warning("Escaped unicode character detected!", l) | l <- strings };
 
 
-/*extractCustomCheck() {
+map[loc, int] extractLongVariableName() {
 
-}*/
+}
 
-/*analyzeCustomCheck() {
+map[loc, int] analyzeLongVariableName() {
 
-}*/
+}
 
-/*set[Message] synthesizeCustomCheck(list[str] lines) {
+set[Message] synthesizeLongVariableName(list[str] lines) {
 
-}*/
+}
 
 test bool UnicodeCharacter()
 	= analyzeAvoidEscapedUnicodeCharacters((|project://1|:"No unicode here", |project://2|:"   /uaf48coolbeans  ")) == (|project://2|:"   /uaf48coolbeans  ");
