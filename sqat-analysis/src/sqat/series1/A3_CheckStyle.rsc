@@ -7,6 +7,7 @@ import IO;
 import util::FileSystem;
 import ParseTree;
 import util::ValueUI;
+import String;
 
 /*
 
@@ -51,7 +52,7 @@ Bonus:
 */
 
 void main(loc project) {
-  text(checkStyle(project));
+  addMessageMarkers(checkStyle(project));
 }
 
 set[loc] getFiles(FileSystem fs) {
@@ -74,18 +75,20 @@ set[Message] checkStyle(loc project) {
   map[loc, str] unicodeExtracts = ();
   map[loc, ArrayInit] trailingCommaExtracts = ();
   map[loc, ImportDec] staticImportExtracts = ();
-  map[loc, int] longVariableExtracts = ();
+  map[loc, int] longVariablesExtracts = ();
   set[Message] results = {};
   
   for(loc location <- getFiles(crawl(project)), location.extension == "java") {
   	 unicodeExtracts += extractAvoidEscapedUnicodeCharacters(parse(#start[CompilationUnit], location, allowAmbiguity=true));
   	 trailingCommaExtracts += extractArrayTrailingComma(parse(#start[CompilationUnit], location, allowAmbiguity=true));
   	 staticImportExtracts += extractAvoidStaticImport(parse(#start[CompilationUnit], location, allowAmbiguity=true));
+  	 longVariablesExtracts += extractLongVariableNames(parse(#start[CompilationUnit], location, allowAmbiguity=true));
   }
   
   results = synthesizeAvoidEscapedUnicodeCharacters(analyzeAvoidEscapedUnicodeCharacters(unicodeExtracts));
   results += synthesizeArrayTrailingComma(trailingCommaExtracts);
   results += synthesizeAvoidStaticImport(staticImportExtracts);
+  results += synthesizeLongVariableNames(analyzeLongVariableNames(23, longVariablesExtracts));
   return results;
 }
 
@@ -138,17 +141,21 @@ set[Message] synthesizeAvoidEscapedUnicodeCharacters(map[loc, str] strings)
 	= { warning("Escaped unicode character detected!", l) | l <- strings };
 
 
-map[loc, int] extractLongVariableName() {
-
+map[loc, int] extractLongVariableNames(start[CompilationUnit] cu) {
+	map[loc, int] result = ();
+	visit(cu) {
+		case varName:(VarDecId)`<Id identity>`: {
+			result += (varName@\loc : size(unparse(identity)));
+			}
+	}
+	return result;
 }
 
-map[loc, int] analyzeLongVariableName() {
+map[loc, int] analyzeLongVariableNames(int threshold, map[loc, int] variables)
+  = ( l: variables[l] | loc l <- variables, variables[l] >= threshold );
 
-}
-
-set[Message] synthesizeLongVariableName(list[str] lines) {
-
-}
+set[Message] synthesizeLongVariableNames(map[loc, int] variables)
+	= { warning("Long variable name detected!", l) | l <- variables };
 
 test bool UnicodeCharacter()
 	= analyzeAvoidEscapedUnicodeCharacters((|project://1|:"No unicode here", |project://2|:"   /uaf48coolbeans  ")) == (|project://2|:"   /uaf48coolbeans  ");
