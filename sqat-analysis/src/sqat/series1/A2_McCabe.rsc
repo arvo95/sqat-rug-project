@@ -1,7 +1,9 @@
 module sqat::series1::A2_McCabe
 
 import lang::java::jdt::m3::AST;
+import analysis::statistics::Correlation;
 import IO;
+
 
 /*
 
@@ -35,23 +37,44 @@ Bonus
 
 */
 
+
 set[Declaration] jpacmanASTs() = createAstsFromEclipseProject(|project://jpacman-framework|, true); 
 
 alias CC = rel[loc method, int cc];
 
 CC cc(set[Declaration] decls) {
-  CC result = {};
-  
-  // to be done
-  
-  return result;
+    CC result = {};
+    visit (decls) {
+        case m:\method(_, _, _, _, Statement body): {
+            result[m.src] = calculateCC(body);
+        }
+    }
+    return result;
+}
+
+int calculateCC(Statement body) {
+    int count = 1;
+    visit (body) {
+        case s:\if(_, _): count += 1; // if, no else
+        case s:\if(_, _, _): count += 1; // if with else
+        case s:\case(_): count += 1; // switch itself doesn't count
+        case s:\for(_, _, _, _): count += 1; // for with condition
+        case s:\for(_, _, _): count += 1; // for without condition
+        case s:\foreach(_, _, _): count += 1; // foreach
+        case s:\while(_, _): count += 1; // while
+        case s:\do(_, _): count += 1; // do while
+        case s:\infix(_, "&&", _): count += 1; // && operator
+        case s:\infix(_, "||", _): count += 1; // || operator
+        case s:\conditional(_, _, _): count += 1; // ? : operators
+        case s:\catch(_, _): count += 1; // try catch
+    }
+    
+    return count;
 }
 
 alias CCDist = map[int cc, int freq];
 
 CCDist ccDist(CC cc) {
-  // to be done
+    return distribution(cc);
 }
-
-
 
