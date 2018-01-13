@@ -2,6 +2,12 @@ module sqat::series1::A3_CheckStyle
 
 import Java17ish;
 import Message;
+import util::ResourceMarkers;
+import IO;
+import util::FileSystem;
+import ParseTree;
+import util::ValueUI;
+import String;
 
 /*
 
@@ -10,7 +16,11 @@ Select 3 checks out of this list:  http://checkstyle.sourceforge.net/checks.html
 Compute a set[Message] (see module Message) containing 
 check-style-warnings + location of  the offending source fragment. 
 
+Chosen checks: AvoidStaticImport, AvoidEscapedUnicodeCharacters, ArrayTrailingComma
+
 Plus: invent your own style violation or code smell and write a checker.
+
+Our style violation - LongVariableNames
 
 Note: since concrete matching in Rascal is "modulo Layout", you cannot
 do checks of layout or comments (or, at least, this will be very hard).
@@ -41,11 +51,111 @@ Bonus:
 
 */
 
-set[Message] checkStyle(loc project) {
-  set[Message] result = {};
-  
-  // to be done
-  // implement each check in a separate function called here. 
-  
-  return result;
+void main(loc project) {
+  addMessageMarkers(checkStyle(project));
 }
+
+set[loc] getFiles(FileSystem fs) {
+	set[loc] files = {};
+	switch(fs){
+		case directory(loc l, set[FileSystem] kids): {
+			for (FileSystem kid <- kids) {
+				files = files + getFiles(kid);
+			}
+			return files;
+		}
+		case file(loc l): {
+			return {l};
+		}
+	}
+	return files;
+}
+
+set[Message] checkStyle(loc project) {
+  map[loc, str] unicodeExtracts = ();
+  map[loc, ArrayInit] trailingCommaExtracts = ();
+  map[loc, ImportDec] staticImportExtracts = ();
+  map[loc, int] longVariablesExtracts = ();
+  set[Message] results = {};
+  
+  for(loc location <- getFiles(crawl(project)), location.extension == "java") {
+  	 unicodeExtracts += extractAvoidEscapedUnicodeCharacters(parse(#start[CompilationUnit], location, allowAmbiguity=true));
+  	 trailingCommaExtracts += extractArrayTrailingComma(parse(#start[CompilationUnit], location, allowAmbiguity=true));
+  	 staticImportExtracts += extractAvoidStaticImport(parse(#start[CompilationUnit], location, allowAmbiguity=true));
+  	 longVariablesExtracts += extractLongVariableNames(parse(#start[CompilationUnit], location, allowAmbiguity=true));
+  }
+  
+  results = synthesizeAvoidEscapedUnicodeCharacters(analyzeAvoidEscapedUnicodeCharacters(unicodeExtracts));
+  results += synthesizeArrayTrailingComma(trailingCommaExtracts);
+  results += synthesizeAvoidStaticImport(staticImportExtracts);
+  results += synthesizeLongVariableNames(analyzeLongVariableNames(23, longVariablesExtracts));
+  return results;
+}
+
+map[loc, ImportDec] extractAvoidStaticImport(start[CompilationUnit] cu) {
+	map[loc, ImportDec] result = ();
+	visit(cu) {
+		case staticImport:(ImportDec)`import static <TypeName typename>.<Id identity>;`: {
+			result += (staticImport@\loc : staticImport);
+			}
+		case staticImport:(ImportDec)`import static <TypeName typename>.*;`: {
+			result += (staticImport@\loc : staticImport);
+			}
+	}
+	return result;
+}
+
+
+set[Message] synthesizeAvoidStaticImport(map[loc, ImportDec] imports)
+	= { warning("Static import detected!", l) | l <- imports };
+
+
+map[loc, ArrayInit] extractArrayTrailingComma(start[CompilationUnit] cu) {
+	map[loc, ArrayInit] result = ();
+	visit(cu) {
+		case array:(ArrayInit)`{<{VarInit  ","}* var>}`: {
+			result += (array@\loc : array);
+			}
+	}
+	return result;
+}
+
+set[Message] synthesizeArrayTrailingComma(map[loc, ArrayInit] arrays)
+	= { warning("Array without trailing comma detected!", l) | l <- arrays };
+
+map[loc, str] extractAvoidEscapedUnicodeCharacters(start[CompilationUnit] cu) {
+	map[loc, str] result = ();
+	visit(cu) {
+		case literal:(StringLiteral)`<LEX_StringLiteral lex>`: {
+			result += (literal@\loc : unparse(lex));
+			}
+	}
+	return result;
+}
+
+map[loc, str] analyzeAvoidEscapedUnicodeCharacters(map[loc, str] strings)
+	= (l: strings[l] | loc l <- strings, /\/u[a-z0-9]{4}/ := strings[l]);
+
+
+set[Message] synthesizeAvoidEscapedUnicodeCharacters(map[loc, str] strings)
+	= { warning("Escaped unicode character detected!", l) | l <- strings };
+
+
+map[loc, int] extractLongVariableNames(start[CompilationUnit] cu) {
+	map[loc, int] result = ();
+	visit(cu) {
+		case varName:(VarDecId)`<Id identity>`: {
+			result += (varName@\loc : size(unparse(identity)));
+			}
+	}
+	return result;
+}
+
+map[loc, int] analyzeLongVariableNames(int threshold, map[loc, int] variables)
+  = ( l: variables[l] | loc l <- variables, variables[l] >= threshold );
+
+set[Message] synthesizeLongVariableNames(map[loc, int] variables)
+	= { warning("Long variable name detected!", l) | l <- variables };
+
+test bool UnicodeCharacter()
+	= analyzeAvoidEscapedUnicodeCharacters((|project://1|:"No unicode here", |project://2|:"   /uaf48coolbeans  ")) == (|project://2|:"   /uaf48coolbeans  ");
