@@ -14,7 +14,13 @@ Construct a distribution of method cylcomatic complexity.
 Questions:
 - which method has the highest complexity (use the @src annotation to get a method's location)
 
+  <|project://jpacman-framework/src/main/java/nl/tudelft/jpacman/npc/ghost/Inky.java|(2255,2267,<68,1>,<131,17>),8>,
+
 - how does pacman fare w.r.t. the SIG maintainability McCabe thresholds?
+
+	All methods are bellow 10 cyclomatic complexity so it means they are in 1-10 CC category, 
+	labeled 'simple, without severe risk
+	
 
 - is code size correlated with McCabe in this case (use functions in analysis::statistics::Correlation to find out)? 
   (Background: Davy Landman, Alexander Serebrenik, Eric Bouwers and Jurgen J. Vinju. Empirical analysis 
@@ -55,18 +61,19 @@ CC cc(set[Declaration] decls) {
 int calculateCC(Statement body) {
     int count = 1;
     visit (body) {
-        case s:\if(_, _): count += 1; // if, no else
         case s:\if(_, _, _): count += 1; // if with else
-        case s:\case(_): count += 1; // switch itself doesn't count
+        case s:\if(_, _): count += 1; // if without else
+        case s:\case(_): count += 1; // switch itself doesn't count. only case count matters
+        case s:\foreach(_, _, _): count += 1; // foreach
         case s:\for(_, _, _, _): count += 1; // for with condition
         case s:\for(_, _, _): count += 1; // for without condition
-        case s:\foreach(_, _, _): count += 1; // foreach
+        case s:\catch(_, _): count += 1; // try catch
         case s:\while(_, _): count += 1; // while
         case s:\do(_, _): count += 1; // do while
-        case s:\infix(_, "&&", _): count += 1; // && operator
         case s:\infix(_, "||", _): count += 1; // || operator
+        case s:\infix(_, "&&", _): count += 1; // && operator
         case s:\conditional(_, _, _): count += 1; // ? : operators
-        case s:\catch(_, _): count += 1; // try catch
+        
     }
     
     return count;
@@ -75,6 +82,51 @@ int calculateCC(Statement body) {
 alias CCDist = map[int cc, int freq];
 
 CCDist ccDist(CC cc) {
-    return distribution(cc);
+    // to be done
 }
+
+void q() {
+	int complexityAll = 0;
+	int methodsComplexity = 0;
+	loc file;
+	CC c = cc(jpacmanASTs());
+	for(<loc l, int n> <- c) {
+
+		if(n > methodsComplexity) {
+			methodsComplexity = n;
+			file = l;
+		}
+		complexityAll+=n;
+	}
+	println("Project omplexity: ");
+	println(complexityAll);
+	println("The most complex method is located here: ");
+	println(file);
+	println("And its complexity is: ");
+	println(methodsComplexity);
+	
+}
+
+
+rel[str methodName, int cc] testResults() {
+	rel[str methodName, int cc] result = {};
+
+	visit({ createAstFromFile(|project://sqat-analysis/src/sqat/series1/A2_test.java|, true) }) {
+		case m: \method(_, name, _, _, body):
+			result += <name, calculateCC(body)>;
+	}
+
+	return result;
+}
+
+test bool ifTest() = testResults()["if_func"] == {2};
+test bool ifElseTest() = testResults()["if_else"] == {2};
+test bool switchCaseTest() = testResults()["switch_case"] == {4};
+test bool forLoopTest() = testResults()["for_loop"] == {2};
+test bool doWhileLoopTest() = testResults()["do_while_loop"] == {2};
+test bool andInfixTest() = testResults()["and_infix"] == {3};
+test bool orInfixTest() = testResults()["or_infix"] == {3};
+test bool ternaryOperatorTest() = testResults()["ternary_operator"] == {2};
+test bool tryCatchTest() = testResults()["try_catch"] == {2};
+
 
