@@ -74,6 +74,16 @@ loc getLocationFromEntity(Entity e) {
 
 // INVOKES
 
+set[loc] invokeHelper (loc loc1, M3 m3) {
+	set[loc] methods;
+	if(isMethod(loc1)) {
+		methods = methodInvokeMethods(loc1, m3);
+	} else {
+		methods = classInvokeMethods(loc1, m3);
+	}
+	return methods;
+}
+
 // check which methods are invoked in given methode 
 set[loc] methodInvokeMethods(loc method, M3 m3) {
 	set[loc] methodList = {};
@@ -100,21 +110,9 @@ set[loc] classInvokeMethods(loc class, M3 m3) {
 	return methodsInvoked;
 }
 
-set[loc] invokeHelper (loc loc1, M3 m3) {
-	set[loc] methods;
-	if(isMethod(loc1)) {
-		methods = methodInvokeMethods(loc1, m3);
-	} else {
-		methods = classInvokeMethods(loc1, m3);
-	}
-	
-	return methods;
-}
-
 Message mustInvoke(Entity e1, Entity e2, M3 m3) {
 	loc loc1 = getLocationFromEntity(e1);
 	loc loc2 = getLocationFromEntity(e2);
-	
 	set[loc] methods = invokeHelper(loc1, m3);
 	
 	for(loc l <- methods) {
@@ -128,7 +126,6 @@ Message mustInvoke(Entity e1, Entity e2, M3 m3) {
 Message cannotInvoke(Entity e1, Entity e2, M3 m3) {
 	loc loc1 = getLocationFromEntity(e1);
 	loc loc2 = getLocationFromEntity(e2);
-
 	set[loc] methods = invokeHelper(loc1, m3);
 	
 	for(loc l <- methods) {
@@ -139,19 +136,6 @@ Message cannotInvoke(Entity e1, Entity e2, M3 m3) {
 	return warning("Accept cannot invoke", loc1);
 }
 
-Message canOnlyInvoke(Entity e1, Entity e2, M3 m3) {
-	loc loc1 = getLocationFromEntity(e1);
-	loc loc2 = getLocationFromEntity(e2);
-
-	set[loc] methods = invokeHelper(loc1, m3);
-	
-	for(loc l <- methods) {
-		if((split("///", loc2.uri)[-1]) != (split("///", split("(", l.uri)[0])[-1])) {
-			return warning("Decline <e1> invokes <e2>", loc1);
-		}
-	}
-	return warning("Accept can only invoke", loc1);
-}
 
 // INHERIT
 
@@ -166,20 +150,17 @@ set[loc] inheritance(loc file, m3) {
 }
 
 void inheritHelper (Entity e1, Entity e2, loc loc1, loc loc2) {
-
 	if(isMethod(loc1)) {
 		return warning("<e1> not a class", loc1);
 	}
 	if(isMethod(loc2)) {
 		return warning("<e2> not a class", loc2);
 	}
-
 }
 
 Message mustInherit(Entity e1, Entity e2, M3 m3) {
 	loc loc1 = getLocationFromEntity(e1);
 	loc loc2 = getLocationFromEntity(e2);
-	
 	inheritHelper(e1, e2, loc1, loc2);
 	
 	if(loc2 notin inheritance(loc1, m3)) {
@@ -191,7 +172,6 @@ Message mustInherit(Entity e1, Entity e2, M3 m3) {
 Message cannotInherit(Entity e1, Entity e2, M3 m3) {
 	loc loc1 = getLocationFromEntity(e1);
 	loc loc2 = getLocationFromEntity(e2);
-
 	inheritHelper(e1, e2, loc1, loc2);	
 
 	if(loc2 in inheritance(loc1, m3)) {
@@ -203,7 +183,6 @@ Message cannotInherit(Entity e1, Entity e2, M3 m3) {
 Message canOnlyInherit(Entity e1, Entity e2, M3 m3) {
 	loc loc1 = getLocationFromEntity(e1);
 	loc loc2 = getLocationFromEntity(e2);
-	
 	inheritHelper(e1, e2, loc1, loc2);
 	
 	for(loc l <- inheritance(loc1, m3)) {
@@ -214,6 +193,7 @@ Message canOnlyInherit(Entity e1, Entity e2, M3 m3) {
 	return warning("Accept can only inherit", loc1);
 }
 
+// TODO: IMPORT rules
 
 set[Message] eval(start[Dicto] dicto, M3 m3) = eval(dicto.top, m3);
 
