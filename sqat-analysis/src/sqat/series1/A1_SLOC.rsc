@@ -5,7 +5,6 @@ import ParseTree;
 import String;
 import util::FileSystem;
 import Map;
-//import sqat::series1::Comments;
 
 /* 
 
@@ -83,16 +82,15 @@ int countLines(list[str] lines){
 				lineCounter += 1;
 			}
 		}
-		else if (multiline_comment){
+		else if (multiline_comment) {
 			if(/\*\// := line) { //Detect a multiline closing line
-				if (!/\*\/.*\*\// := line){
+				if (!/\*\/.*\*\// := line) {
 					multiline_comment = false;
 				}
 				if(/\*\/[\s\t]*([^\s\t\/]|\/[^*])/ := line) { //Detect a multiline closing and new opening in the same line
 					lineCounter += 1;
 				}
 			}
-			//TODO: A case with one multiline comment ending, content in between and another multiline starting
 		}
 		
 	} 
