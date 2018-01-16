@@ -1,10 +1,4 @@
 
-//foo.Foo cannot depend bar.Bar
-//foo.Foo::init cannot instantiate bar.Bar
-//foo cannot import bar
-
-
-
 nl.tudelft.jpacman.board.Board must invoke nl.tudelft.jpacman.board.Board::getHeight
 nl.tudelft.jpacman.board.Board cannot invoke nl.tudelft.jpacman.board.BoardFactory::createBoard
 
@@ -12,4 +6,6 @@ nl.tudelft.jpacman.level.Pellet must inherit nl.tudelft.jpacman.board.Unit
 nl.tudelft.jpacman.level.Pellet can only inherit nl.tudelft.jpacman.board.Unit
 nl.tudelft.jpacman.level.Pellet cannot inherit nl.tudelft.jpacman.board.BoardFactory
 
-//nl.tudelft.jpacman.ui.BoardPannel.java must import java.awt.Color;
+//nl.tudelft.jpacman.ui.BoardPannel.java must import java.awt.Color
+//nl.tudelft.jpacman.ui.BoardPannel.java can only import java.awt.Color
+//nl.tudelft.jpacman.ui.BoardPannel.java cannot import java.io.InputStream
