@@ -15,11 +15,12 @@ Questions:
 - which method has the highest complexity (use the @src annotation to get a method's location)
 
   <|project://jpacman-framework/src/main/java/nl/tudelft/jpacman/npc/ghost/Inky.java|(2255,2267,<68,1>,<131,17>),8>,
+  The method is: public Direction nextMove()
 
 - how does pacman fare w.r.t. the SIG maintainability McCabe thresholds?
 
 	All methods are bellow 10 cyclomatic complexity so it means they are in 1-10 CC category, 
-	labeled 'simple, without severe risk
+	labeled "simple, without much risk", a ++.
 	
 
 - is code size correlated with McCabe in this case (use functions in analysis::statistics::Correlation to find out)? 
@@ -61,17 +62,17 @@ CC cc(set[Declaration] decls) {
 int calculateComplexity(Statement body) {
     int count = 1;
     visit (body) {
-        case s:\if(_, _, _): count += 1; // if with else
-        case s:\if(_, _): count += 1; // if without else
-        case s:\case(_): count += 1; // switch itself doesn't count. only case count matters
-        case s:\foreach(_, _, _): count += 1; // foreach
-        case s:\for(_, _, _, _): count += 1; // for with condition
-        case s:\for(_, _, _): count += 1; // for without condition
-        case s:\catch(_, _): count += 1; // try catch
-        case s:\while(_, _): count += 1; // while
-        case s:\do(_, _): count += 1; // do while
-        case s:\infix(_, "||", _): count += 1; // || operator
-        case s:\infix(_, "&&", _): count += 1; // && operator
+        case s:\if(_, _, _): count += 1; 
+        case s:\if(_, _): count += 1; 
+        case s:\case(_): count += 1;
+        case s:\foreach(_, _, _): count += 1; 
+        case s:\for(_, _, _, _): count += 1; 
+        case s:\for(_, _, _): count += 1; 
+        case s:\catch(_, _): count += 1; 
+        case s:\while(_, _): count += 1; 
+        case s:\do(_, _): count += 1; 
+        case s:\infix(_, "||", _): count += 1; 
+        case s:\infix(_, "&&", _): count += 1; 
         case s:\conditional(_, _, _): count += 1; // ? : operators
         
     }
@@ -128,5 +129,4 @@ test bool andInfixTest() = testResults()["and_infix"] == {3};
 test bool orInfixTest() = testResults()["or_infix"] == {3};
 test bool ternaryOperatorTest() = testResults()["ternary_operator"] == {2};
 test bool tryCatchTest() = testResults()["try_catch"] == {2};
-
 
