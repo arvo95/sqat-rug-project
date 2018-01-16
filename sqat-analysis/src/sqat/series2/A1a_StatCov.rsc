@@ -9,6 +9,7 @@ import List;
 import Set;
 import String;
 import util::Math;
+import Type;
 
 
 /*
@@ -66,9 +67,9 @@ data Label
 	| dType()
 	| vCall();
 
-alias graph = rel[Node, Label, Node];
+alias graph = rel[Node, Node];
 alias method = tuple[loc name, loc src];
-
+alias class = tuple[loc name, loc src];
 
 set[method] getTestMethods(M3 pacmanM3) {
 	return toSet([m | method m <- pacmanM3.declarations, contains(m.src.path, "/test/"), isMethod(m.name)]);
@@ -80,12 +81,6 @@ set[method] getAllMethods(M3 pacmanM3) {
 
 set[method] getAllProductionMethods(M3 pacmanM3) {
 	return getAllMethods(pacmanM3) - getTestMethods(pacmanM3);
-}
-
-set[method] getMethodCallList(M3 pacmanM3, method meth) {
-	set[method] methods = getAllMethods(pacmanM3);
-	set[loc] names = pacmanM3.methodInvocation[meth.name];
-	return toSet([<name, getOneFrom(methods[name])> | name <- names, !isEmpty(methods[name])]);
 }
 
 graph transitiveClosure(graph g) {
@@ -109,11 +104,11 @@ graph createCallGraph(M3 pacmanM3) {
 	for(<container, content> <- contains){
 		if(container in packages) {
 			if(content in classes) {
-				g += <class(container), dType(), method(content)>;
+				g += <class(container), method(content)>;
 				//TODO: Add virtual calls
 			}
 			else {
-				g += <interface(container), dType(), method(content)>;
+				g += <interface(container), method(content)>;
 			}
 		}
 	}
@@ -122,59 +117,68 @@ graph createCallGraph(M3 pacmanM3) {
 		if(isConstructor(invoker)) {
 			//loc containingClass = 
 			if(invoker in interfaces) {
-				g += <interface(invoker), call(), method(calledFunction)>;
+				g += <interface(invoker), method(calledFunction)>;
 			}
 			else {
-				g += <class(invoker), call(), method(calledFunction)>;
+				g += <class(invoker), method(calledFunction)>;
 			}
 		}
 		else {
-			g += <method(invoker), call(), method(calledFunction)>;
+			g += <method(invoker), method(calledFunction)>;
 		}
 	}
-	text(g);
 	return g;
 }
 
-[num, num] calculateClassCoverage(graph g, M3 pacmanM3, loc coverClass) {
-	set[method] classMethods = {to | <from, label, to> <- g, from == class(coverClass) || from == interface(coverClass) };
+tuple[num covered, num total] calculateClassCoverage(graph g, M3 pacmanM3, loc coverClass) {
+	rel[loc, loc] contains = pacmanM3.containment;
+	set[loc] classMethods = toSet([content | <container, content> <- contains, container == coverClass && isMethod(content)]);
 	set[method] testMethods = getTestMethods(pacmanM3);
-	set[method] reachedMethods = {};
+	set[loc] reachedMethods = {};
 	
-	reachedMethods = toSet([tested | testMethod <- testMethods, tested <- classMethods, <testMethod, call(), tested> in g]);
-	return [size(reachedMethods), size(classMethods)];
+	reachedMethods = toSet([tested | testMethod <- testMethods, tested <- classMethods, <method(testMethod.name), method(tested)> in g]);
+	return <size(reachedMethods), size(classMethods)>;
 }
 
-[num, num] calculatePackageCoverage(graph g, M3 pacmanM3, loc coverPackage) {
-	for(<from, label, to> <- g) {
-		if(label == dMethod()) { //TODO: Exclude test classes
+tuple[num covered, num total] calculatePackageCoverage(graph g, M3 pacmanM3, loc coverPackage) {
+	//tuple[num covered, num total] currentClass = 
+	for(<from, to> <- g) {
+		if(equivalent(from, class())) { //TODO: Exclude test classes
 			calculateClassCoverage(g, pacmanM3, from);
 		}
 	}
 }
 
 num calculateSystemCoverage(graph g, M3 pacmanM3) {
-	for(<from, label, to> <- g) {
-		if(label == dType()) { //TODO:Exclude test packages
+	for(<from, to> <- g) {
+		if(equivalent(from, package())) { //TODO:Exclude test packages
 			calculatePackageCoverage(g, pacmanM3, from);
 		}
 	}
 }
 
-void printSystemCoverage(graph g) {
-	
+void printSystemCoverage(graph g, M3 pacmanM3) {
+	print(calculateSystemCoverage(g, pacmanM3));
 }
 
-void printPackageCoverage(graph g) {
+void printPackageCoverage(graph g, M3 pacmanM3) {
 	
 }
 
 void printClassCoverage(graph g, M3 pacmanM3) {
-	map[loc, num] coverage = [];
+	rel[loc, num] coverage = {};
 	set[loc] classes = classes(pacmanM3);
-	productionClasses = {c | c <- classes, !contains(c.src.path, "/test/")};
+	num percentageCovered = 0;
+	productionClasses = {c | c <- classes, !contains(c.path, "/test/")};
 	for(productionClass <- productionClasses) {
-		coverage += [productionClass, calculateClassCoverage(g, pacmanM3, productionClass)];
+		tuple[num covered, num total] currentClass = calculateClassCoverage(g, pacmanM3, productionClass);
+		if(currentClass.total > 0) {
+			percentageCovered = 100 * currentClass.covered / currentClass.total;
+		}
+		else {
+			percentageCovered = 0;
+		}
+		coverage += <productionClass, percentageCovered>;
 	}
 	text(coverage);
 }
