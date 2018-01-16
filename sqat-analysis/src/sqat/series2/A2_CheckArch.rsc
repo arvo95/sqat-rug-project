@@ -14,9 +14,7 @@ import String;
 This assignment has two parts:
 - write a dicto file (see example.dicto for an example)
   containing 3 or more architectural rules for Pacman
-  1. BoardPannel.java must import java.awt.Color;
-  2. nl.tudelft.jpacman.level.Pellet must inherit nl.tudelft.jpacman.board.Unit
-  3. nl.tudelft.jpacman.board.Board must invoke nl.tudelft.jpacman.board.Board.getHeight
+
   
 - write an evaluator for the Dicto language that checks for
   violations of these rules. 
@@ -103,7 +101,6 @@ set[loc] classInvokeMethods(loc class, M3 m3) {
 }
 
 set[loc] invokeHelper (loc loc1, M3 m3) {
-	
 	set[loc] methods;
 	if(isMethod(loc1)) {
 		methods = methodInvokeMethods(loc1, m3);
@@ -117,9 +114,6 @@ set[loc] invokeHelper (loc loc1, M3 m3) {
 Message mustInvoke(Entity e1, Entity e2, M3 m3) {
 	loc loc1 = getLocationFromEntity(e1);
 	loc loc2 = getLocationFromEntity(e2);
-	if(!isMethod(loc2)) {
-		return  warning("not a method", loc2);
-	}
 	
 	set[loc] methods = invokeHelper(loc1, m3);
 	
@@ -134,11 +128,7 @@ Message mustInvoke(Entity e1, Entity e2, M3 m3) {
 Message cannotInvoke(Entity e1, Entity e2, M3 m3) {
 	loc loc1 = getLocationFromEntity(e1);
 	loc loc2 = getLocationFromEntity(e2);
-	if(!isMethod(loc2)) {
-		return  warning("not a method", loc2);
-	}
-	
-	
+
 	set[loc] methods = invokeHelper(loc1, m3);
 	
 	for(loc l <- methods) {
@@ -152,10 +142,7 @@ Message cannotInvoke(Entity e1, Entity e2, M3 m3) {
 Message canOnlyInvoke(Entity e1, Entity e2, M3 m3) {
 	loc loc1 = getLocationFromEntity(e1);
 	loc loc2 = getLocationFromEntity(e2);
-	if(!isMethod(loc2)) {
-		return  warning("not a method", loc2);
-	}
-	
+
 	set[loc] methods = invokeHelper(loc1, m3);
 	
 	for(loc l <- methods) {
@@ -169,31 +156,63 @@ Message canOnlyInvoke(Entity e1, Entity e2, M3 m3) {
 // INHERIT
 
 set[loc] inheritance(loc file, m3) {
-	set[loc] foundInherits = {};
+	set[loc] inherits = {};
 	for(<loc from, loc to> <- m3.extends) {
 		if(from == file) {
-			foundInherits += to;
+			inherits += to;
 		}
 	}
-	return foundInherits;
+	return inherits;
 }
 
-Message mustInherit(Entity e1, Entity e2, M3 m3) {
-	loc loc1 = getLocationFromEntity(e1);
-	loc loc2 = getLocationFromEntity(e2);
+void inheritHelper (Entity e1, Entity e2, loc loc1, loc loc2) {
+
 	if(isMethod(loc1)) {
 		return warning("<e1> not a class", loc1);
 	}
 	if(isMethod(loc2)) {
 		return warning("<e2> not a class", loc2);
 	}
+
+}
+
+Message mustInherit(Entity e1, Entity e2, M3 m3) {
+	loc loc1 = getLocationFromEntity(e1);
+	loc loc2 = getLocationFromEntity(e2);
+	
+	inheritHelper(e1, e2, loc1, loc2);
+	
 	if(loc2 notin inheritance(loc1, m3)) {
 		return warning("Decline <e1> does not inherit from <e2>", loc1);
 	}
-	return warning("Accept  must inherit", loc1);
+	return warning("Accept must inherit", loc1);
 }
 
+Message cannotInherit(Entity e1, Entity e2, M3 m3) {
+	loc loc1 = getLocationFromEntity(e1);
+	loc loc2 = getLocationFromEntity(e2);
 
+	inheritHelper(e1, e2, loc1, loc2);	
+
+	if(loc2 in inheritance(loc1, m3)) {
+		return warning("Decline <e1> inherits from <e2>", loc1);
+	}
+	return warning("Accept cannot inherit ", loc1);
+}
+
+Message canOnlyInherit(Entity e1, Entity e2, M3 m3) {
+	loc loc1 = getLocationFromEntity(e1);
+	loc loc2 = getLocationFromEntity(e2);
+	
+	inheritHelper(e1, e2, loc1, loc2);
+	
+	for(loc l <- inheritance(loc1, m3)) {
+		if(loc2 != l) {
+			return warning("Decline <e1> does not inherits from <e2>", loc1);
+		}
+	}
+	return warning("Accept can only inherit", loc1);
+}
 
 
 set[Message] eval(start[Dicto] dicto, M3 m3) = eval(dicto.top, m3);
