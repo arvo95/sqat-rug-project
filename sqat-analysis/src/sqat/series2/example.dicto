@@ -2,3 +2,8 @@
 foo.Foo cannot depend bar.Bar
 foo.Foo::init cannot instantiate bar.Bar
 foo cannot import bar
+
+nl.tudelft.jpacman.level.Pellet must inherit nl.tudelft.jpacman.board.Unit
+nl.tudelft.jpacman.board.Board must invoke nl.tudelft.jpacman.board.Board.getHeight
+
+nl.tudelft.jpacman.ui.BoardPannel.java must import java.awt.Color;
