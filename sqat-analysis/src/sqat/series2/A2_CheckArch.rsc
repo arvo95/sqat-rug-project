@@ -65,23 +65,15 @@ Questions
 
 
 // from Entity get location
-loc getEntityLocation(Entity e) { 
+loc getLocationFromEntity(Entity e) { 
 	if(contains("<e>", "::")) {
 		return |java+method:///| + replaceAll(replaceAll("<e>", ".", "/"), "::", "/");
 	}
-	// Not a method = a class (dicto grammar)
 	return |java+class:///| + replaceAll("<e>", ".", "/");
 }
 
-// from Entity get location
-loc getConstructorLocation(Entity e) {
-	return |java+constructor:///| + replaceAll(replaceAll("<e>", ".", "/"), "::", "/");
-}
 
-// check if method
-bool isMethod(Entity e) {
-	return contains("<e>", "::");
-}
+// INVOKES
 
 // check which methods are invoked in given methode 
 set[loc] methodInvokeMethods(loc method, M3 m3) {
@@ -104,32 +96,102 @@ set[loc] classInvokeMethods(loc class, M3 m3) {
 		}
 	}
 	for(loc method <- methodsInClass) {
-		methodsInvoked += methodInvokesMethods(method, m3);
+		methodsInvoked += methodInvokeMethods(method, m3);
 	}
 	return methodsInvoked;
 }
 
-Message mustInvoke(Entity e1, Entity e2, M3 m3) {
-	loc l1 = getEntityLocation(e1);
-	loc l2 = getEntityLocation(e2);
-	if(!isMethod(e2)) {
-		return  warning("<e2> not a method", l2);
-	}
+set[loc] invokeHelper (loc loc1, M3 m3) {
+	
 	set[loc] methods;
-	if(isMethod(e1)) {
-		methods = methodInvokeMethods(l1, m3);
+	if(isMethod(loc1)) {
+		methods = methodInvokeMethods(loc1, m3);
 	} else {
-		methods = classInvokeMethods(l1, m3);
+		methods = classInvokeMethods(loc1, m3);
 	}
+	
+	return methods;
+}
+
+Message mustInvoke(Entity e1, Entity e2, M3 m3) {
+	loc loc1 = getLocationFromEntity(e1);
+	loc loc2 = getLocationFromEntity(e2);
+	if(!isMethod(loc2)) {
+		return  warning("not a method", loc2);
+	}
+	
+	set[loc] methods = invokeHelper(loc1, m3);
+	
 	for(loc l <- methods) {
-		if((split("///", l2.uri)[-1]) == (split("(", split("///", l.uri)[-1])[0])) {
-			println("Accept- rule must invoke", l1);
-			return warning("Accept- rule must invoke", l1);
+		if((split("///", loc2.uri)[-1]) == (split("(", split("///", l.uri)[-1])[0])) {
+			return warning("Accept must invoke", loc1);
 		}
 	}
-	println("<e1> does not invoke <e2> (must invoke)");
-	return warning("<e1> does not invoke <e2> (must invoke)", l1);
+	return warning("Decline <e1> does not invoke <e2>", loc1);
 }
+
+Message cannotInvoke(Entity e1, Entity e2, M3 m3) {
+	loc loc1 = getLocationFromEntity(e1);
+	loc loc2 = getLocationFromEntity(e2);
+	if(!isMethod(loc2)) {
+		return  warning("not a method", loc2);
+	}
+	
+	set[loc] methods = invokeHelper(loc1, m3);
+	
+	for(loc l <- methods) {
+		if((split("///", loc2.uri)[-1]) == (split("///", split("(", l.uri)[0])[-1])) {
+			return warning("Decline <e1> invokes <e2>", loc1);
+		}
+	}
+	return warning("Accept cannot invoke", loc1);
+}
+
+Message canOnlyInvoke(Entity e1, Entity e2, M3 m3) {
+	loc loc1 = getLocationFromEntity(e1);
+	loc loc2 = getLocationFromEntity(e2);
+	if(!isMethod(loc2)) {
+		return  warning("not a method", loc2);
+	}
+	
+	set[loc] methods = invokeHelper(loc1, m3);
+	
+	for(loc l <- methods) {
+		if((split("///", loc2.uri)[-1]) != (split("///", split("(", l.uri)[0])[-1])) {
+			return warning("Decline <e1> invokes <e2>", loc1);
+		}
+	}
+	return warning("Accept can only invoke", loc1);
+}
+
+// INHERIT
+
+set[loc] inheritance(loc file, m3) {
+	set[loc] foundInherits = {};
+	for(<loc from, loc to> <- m3.extends) {
+		if(from == file) {
+			foundInherits += to;
+		}
+	}
+	return foundInherits;
+}
+
+Message mustInherit(Entity e1, Entity e2, M3 m3) {
+	loc loc1 = getLocationFromEntity(e1);
+	loc loc2 = getLocationFromEntity(e2);
+	if(isMethod(loc1)) {
+		return warning("<e1> not a class", loc1);
+	}
+	if(isMethod(loc2)) {
+		return warning("<e2> not a class", loc2);
+	}
+	if(loc2 notin inheritance(loc1, m3)) {
+		return warning("Decline <e1> does not inherit from <e2>", loc1);
+	}
+	return warning("Accept  must inherit", loc1);
+}
+
+
 
 
 set[Message] eval(start[Dicto] dicto, M3 m3) = eval(dicto.top, m3);
@@ -142,17 +204,17 @@ set[Message] eval(Rule rule, M3 m3) {
   
   // to be done
   
-  
   switch (rule) {
-  	case (Rule)`<Entity e1> must import <Entity e2>`: msgs += mustImport(e1, e2, m3);
-  	case (Rule)`<Entity e1> cannot import <Entity e2>`: msgs += cannotImport(e1, e2, m3);
-  	case (Rule)`<Entity e1> can only import <Entity e2>`: msgs += canOnlyImport(e1, e2, m3);
-  	case (Rule)`<Entity e1> must inherit <Entity e2>`: msgs += mustInherit(e1, e2, m3);
-  	case (Rule)`<Entity e1> cannot inherit <Entity e2>`: msgs += cannotInherit(e1, e2, m3);
-  	case (Rule)`<Entity e1> can only inherit <Entity e2>`: msgs += canOnlyInherit(e1, e2, m3);
   	case (Rule)`<Entity e1> must invoke <Entity e2>`: msgs += mustInvoke(e1, e2, m3);
   	case (Rule)`<Entity e1> cannot invoke <Entity e2>`: msgs += cannotInvoke(e1, e2, m3);
   	case (Rule)`<Entity e1> can only invoke <Entity e2>`: msgs += canOnlyInvoke(e1, e2, m3);
+  	case (Rule)`<Entity e1> must inherit <Entity e2>`: msgs += mustInherit(e1, e2, m3);
+  	case (Rule)`<Entity e1> cannot inherit <Entity e2>`: msgs += cannotInherit(e1, e2, m3);
+  	case (Rule)`<Entity e1> can only inherit <Entity e2>`: msgs += canOnlyInherit(e1, e2, m3);
+  	case (Rule)`<Entity e1> must import <Entity e2>`: msgs += mustImport(e1, e2, m3);
+  	case (Rule)`<Entity e1> cannot import <Entity e2>`: msgs += cannotImport(e1, e2, m3);
+  	case (Rule)`<Entity e1> can only import <Entity e2>`: msgs += canOnlyImport(e1, e2, m3);
+  	
   }
   
   return msgs;
@@ -160,10 +222,8 @@ set[Message] eval(Rule rule, M3 m3) {
 
 M3 jpacmanM3() = createM3FromEclipseProject(|project://jpacman-framework/src|);
 
-
-
-test bool testMustInvoke() = 
-	eval((Rule)`nl.tudelft.jpacman.board.Board must invoke nl.tudelft.jpacman.board.Board.getHeight`,
-	jpacmanM3()) == {warning("Accept- rule must invoke",|java+class://nl.tudelft.jpacman.board.Board|)};
+set[Message] runDicto() {
+	return eval(parse(#start[Dicto], |project://sqat-analysis/src/sqat/series2/example.dicto|), jpacmanM3());
+}
 
 
