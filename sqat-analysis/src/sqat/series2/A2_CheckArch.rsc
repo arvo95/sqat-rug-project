@@ -84,18 +84,18 @@ bool isMethod(Entity e) {
 }
 
 // check which methods are invoked in given methode 
-set[loc] methodInvokesMethods(loc method, M3 m3) {
-	set[loc] methods = {};
+set[loc] methodInvokeMethods(loc method, M3 m3) {
+	set[loc] methodList = {};
 	for(<loc from, loc to> <- m3.methodInvocation) {
 		if((split("///", split("(", from.uri)[0])[-1]) == (split("///", split("(", method.uri)[0])[-1])) {
-			methods += to;
+			methodList += to;
 		}
 	}
-	return methods;
+	return methodList;
 }
 
 // check which methods are invoked in given class 
-set[loc] classInvokesMethods(loc class, M3 m3) { 
+set[loc] classInvokeMethods(loc class, M3 m3) { 
 	set[loc] methodsInvoked = {};
 	set[loc] methodsInClass = {};
 	for(<loc name, loc src> <- m3.declarations) {
@@ -113,22 +113,22 @@ Message mustInvoke(Entity e1, Entity e2, M3 m3) {
 	loc l1 = getEntityLocation(e1);
 	loc l2 = getEntityLocation(e2);
 	if(!isMethod(e2)) {
-		return  warning("<e2> is not a method", l2);
+		return  warning("<e2> not a method", l2);
 	}
 	set[loc] methods;
 	if(isMethod(e1)) {
-		methods = methodInvokesMethods(l1, m3);
+		methods = methodInvokeMethods(l1, m3);
 	} else {
-		methods = classInvokesMethods(l1, m3);
+		methods = classInvokeMethods(l1, m3);
 	}
 	for(loc l <- methods) {
 		if((split("///", l2.uri)[-1]) == (split("(", split("///", l.uri)[-1])[0])) {
-			println("Rule mustInvoke accepted", l1);
-			return warning("Rule mustInvoke accepted", l1);
+			println("Accept- rule must invoke", l1);
+			return warning("Accept- rule must invoke", l1);
 		}
 	}
-	println("<e1> does not invoke <e2> (mustInvoke)");
-	return warning("<e1> does not invoke <e2> (mustInvoke)", l1);
+	println("<e1> does not invoke <e2> (must invoke)");
+	return warning("<e1> does not invoke <e2> (must invoke)", l1);
 }
 
 
@@ -164,6 +164,6 @@ M3 jpacmanM3() = createM3FromEclipseProject(|project://jpacman-framework/src|);
 
 test bool testMustInvoke() = 
 	eval((Rule)`nl.tudelft.jpacman.board.Board must invoke nl.tudelft.jpacman.board.Board.getHeight`,
-	jpacmanM3()) == {warning("Rule mustInvoke accepted",|java+class://nl.tudelft.jpacman.board.Board|)};
+	jpacmanM3()) == {warning("Accept- rule must invoke",|java+class://nl.tudelft.jpacman.board.Board|)};
 
 
