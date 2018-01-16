@@ -48,9 +48,12 @@ Tips
 
 Questions:
 - what methods are not covered at all?
+For example - EmptySprite.getHeight(), EmptySprite.getWidth(), EmptySprite.split()
+
 - how do your results compare to the jpacman results in the paper? Has jpacman improved?
+It seems like it got worse, because the paper states that Clover reported around 90% test coverage, however it is 82.6% according to our Clover test coverage report.
 - use a third-party coverage tool (e.g. Clover) to compare your results to (explain differences)
-Clover says that the test coverage of jpacman methods is 82.6%
+Clover says that the test coverage of jpacman methods is 82.6%. Our result is 60.18%, which is believable, since the pessimistic approach was taken.
 
 */
 
@@ -60,16 +63,11 @@ data Node
 	| class(loc location)
 	| package(loc location)
 	| interface(loc location);
-	
-data Label
-	= dMethod()
-	| call()
-	| dType()
-	| vCall();
 
 alias graph = rel[Node, Node];
 alias method = tuple[loc name, loc src];
 alias class = tuple[loc name, loc src];
+alias package = tuple[loc name, loc src];
 
 set[method] getTestMethods(M3 pacmanM3) {
 	return toSet([m | method m <- pacmanM3.declarations, contains(m.src.path, "/test/"), isMethod(m.name)]);
@@ -79,8 +77,44 @@ set[method] getAllMethods(M3 pacmanM3) {
 	return toSet([m | method m <- pacmanM3.declarations, isMethod(m.name)]);
 }
 
-set[method] getAllProductionMethods(M3 pacmanM3) {
+set[class] getAllProductionMethods(M3 pacmanM3) {
 	return getAllMethods(pacmanM3) - getTestMethods(pacmanM3);
+}
+
+set[class] getTestClasses(M3 pacmanM3) {
+	return toSet([c | class c <- pacmanM3.declarations, contains(c.src.path, "/test/"), isClass(c.name)]);
+}
+
+set[class] getAllClasses(M3 pacmanM3) {
+	return toSet([c | class c <- pacmanM3.declarations, isClass(c.name)]);
+}
+
+set[class] getAllProductionClasses(M3 pacmanM3) {
+	return getAllClasses(pacmanM3) - getTestClasses(pacmanM3);
+}
+
+set[class] getTestInterfaces(M3 pacmanM3) {
+	return toSet([i | class i <- pacmanM3.declarations, contains(i.src.path, "/test/"), isInterface(i.name)]);
+}
+
+set[class] getAllInterfaces(M3 pacmanM3) {
+	return toSet([i | class i <- pacmanM3.declarations, isInterface(i.name)]);
+}
+
+set[class] getAllProductionInterfaces(M3 pacmanM3) {
+	return getAllInterfaces(pacmanM3) - getTestInterfaces(pacmanM3);
+}
+
+set[package] getTestPackages(M3 pacmanM3) {
+	return toSet([p | class p <- pacmanM3.declarations, contains(p.src.path, "/test/"), isPackage(p.name)]);
+}
+
+set[package] getAllPackages(M3 pacmanM3) {
+	return toSet([p | package p <- pacmanM3.declarations, isPackage(p.name)]);
+}
+
+set[package] getAllProductionPackages(M3 pacmanM3) {
+	return getAllPackages(pacmanM3) - getTestPackages(pacmanM3);
 }
 
 graph transitiveClosure(graph g) {
@@ -104,8 +138,15 @@ graph createCallGraph(M3 pacmanM3) {
 	for(<container, content> <- contains){
 		if(container in packages) {
 			if(content in classes) {
+				g += <package(container), class(content)>;
+			}
+			else {
+				g += <package(container), interface(content)>;
+			}
+		}
+		else {
+			if(container in classes) {
 				g += <class(container), method(content)>;
-				//TODO: Add virtual calls
 			}
 			else {
 				g += <interface(container), method(content)>;
@@ -115,7 +156,6 @@ graph createCallGraph(M3 pacmanM3) {
 	
 	for(<invoker, calledFunction> <- calls) {
 		if(isConstructor(invoker)) {
-			//loc containingClass = 
 			if(invoker in interfaces) {
 				g += <interface(invoker), method(calledFunction)>;
 			}
@@ -140,53 +180,38 @@ tuple[num covered, num total] calculateClassCoverage(graph g, M3 pacmanM3, loc c
 	return <size(reachedMethods), size(classMethods)>;
 }
 
-tuple[num covered, num total] calculatePackageCoverage(graph g, M3 pacmanM3, loc coverPackage) {
-	//tuple[num covered, num total] currentClass = 
-	for(<from, to> <- g) {
-		if(equivalent(from, class())) { //TODO: Exclude test classes
-			calculateClassCoverage(g, pacmanM3, from);
-		}
-	}
+
+void printSystemCoverage(tuple[num covered, num total] systemCoverage) {
+	num coverage = 100 * systemCoverage.covered / systemCoverage.total;
+	printExp("Complete system coverage: ", coverage);
 }
 
-num calculateSystemCoverage(graph g, M3 pacmanM3) {
-	for(<from, to> <- g) {
-		if(equivalent(from, package())) { //TODO:Exclude test packages
-			calculatePackageCoverage(g, pacmanM3, from);
-		}
-	}
-}
 
-void printSystemCoverage(graph g, M3 pacmanM3) {
-	print(calculateSystemCoverage(g, pacmanM3));
-}
-
-void printPackageCoverage(graph g, M3 pacmanM3) {
-	
-}
-
-void printClassCoverage(graph g, M3 pacmanM3) {
+tuple[num covered, num total] printClassCoverage(graph g, M3 pacmanM3) {
 	rel[loc, num] coverage = {};
-	set[loc] classes = classes(pacmanM3);
+	rel[loc name, loc src] productionClasses = getAllProductionClasses(pacmanM3) + getAllProductionInterfaces(pacmanM3);
+	tuple[num covered, num total] systemCoverage = <0, 0>;
 	num percentageCovered = 0;
-	productionClasses = {c | c <- classes, !contains(c.path, "/test/")};
 	for(productionClass <- productionClasses) {
-		tuple[num covered, num total] currentClass = calculateClassCoverage(g, pacmanM3, productionClass);
+		tuple[num covered, num total] currentClass = calculateClassCoverage(g, pacmanM3, productionClass.name);
 		if(currentClass.total > 0) {
+			systemCoverage.covered += currentClass.covered;
+			systemCoverage.total += currentClass.total;
 			percentageCovered = 100 * currentClass.covered / currentClass.total;
 		}
 		else {
 			percentageCovered = 0;
 		}
-		coverage += <productionClass, percentageCovered>;
+		coverage += <productionClass.name, percentageCovered>;
 	}
 	text(coverage);
+	return systemCoverage;
 }
 
 void main(){
+	tuple[num covered, num total] systemCoverage = <0, 0>;
 	M3 jpacmanM3() = createM3FromEclipseProject(|project://jpacman-framework|);
 	graph g = transitiveClosure(createCallGraph(jpacmanM3()));
-	//printSystemCoverage(g);
-	printClassCoverage(g, jpacmanM3());
-	//printPackageCoverage(g);
+	systemCoverage = printClassCoverage(g, jpacmanM3());
+	printSystemCoverage(systemCoverage);
 }
