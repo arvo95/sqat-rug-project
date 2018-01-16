@@ -138,6 +138,7 @@ Message cannotInvoke(Entity e1, Entity e2, M3 m3) {
 		return  warning("not a method", loc2);
 	}
 	
+	
 	set[loc] methods = invokeHelper(loc1, m3);
 	
 	for(loc l <- methods) {
