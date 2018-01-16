@@ -29,6 +29,7 @@ class ButtonPanel extends JPanel {
 		super();
 		assert buttons != null;
 		assert parent != null;
+		System.out.print("/u45abwoahdude");
 		
 		for (final String caption : buttons.keySet()) {
 			JButton button = new JButton(caption);

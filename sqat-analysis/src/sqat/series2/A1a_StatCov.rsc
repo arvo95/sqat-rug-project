@@ -1,6 +1,15 @@
 module sqat::series2::A1a_StatCov
 
 import lang::java::jdt::m3::Core;
+import analysis::m3::Core;
+import util::ValueUI;
+import Relation;
+import IO;
+import List;
+import Set;
+import String;
+import util::Math;
+
 
 /*
 
@@ -40,10 +49,140 @@ Questions:
 - what methods are not covered at all?
 - how do your results compare to the jpacman results in the paper? Has jpacman improved?
 - use a third-party coverage tool (e.g. Clover) to compare your results to (explain differences)
-
+Clover says that the test coverage of jpacman methods is 82.6%
 
 */
 
 
-M3 jpacmanM3() = createM3FromEclipseProject(|project://jpacman-framework|);
+data Node
+	= method(loc location)
+	| class(loc location)
+	| package(loc location)
+	| interface(loc location);
+	
+data Label
+	= dMethod()
+	| call()
+	| dType()
+	| vCall();
 
+alias graph = rel[Node, Label, Node];
+alias method = tuple[loc name, loc src];
+
+
+set[method] getTestMethods(M3 pacmanM3) {
+	return toSet([m | method m <- pacmanM3.declarations, contains(m.src.path, "/test/"), isMethod(m.name)]);
+}
+
+set[method] getAllMethods(M3 pacmanM3) {
+	return toSet([m | method m <- pacmanM3.declarations, isMethod(m.name)]);
+}
+
+set[method] getAllProductionMethods(M3 pacmanM3) {
+	return getAllMethods(pacmanM3) - getTestMethods(pacmanM3);
+}
+
+set[method] getMethodCallList(M3 pacmanM3, method meth) {
+	set[method] methods = getAllMethods(pacmanM3);
+	set[loc] names = pacmanM3.methodInvocation[meth.name];
+	return toSet([<name, getOneFrom(methods[name])> | name <- names, !isEmpty(methods[name])]);
+}
+
+graph transitiveClosure(graph g) {
+	return solve(g){
+		g = g + (g o g);
+	};
+}
+
+graph createCallGraph(M3 pacmanM3) {
+	set[loc] packages = packages(pacmanM3);
+    set[loc] classes = classes(pacmanM3);
+    set[loc] interfaces = interfaces(pacmanM3);
+    set[loc] methods = methods(pacmanM3);
+
+	rel[loc, loc] contains = pacmanM3.containment;
+	rel[loc, loc] calls = pacmanM3.methodInvocation;
+	rel[loc, loc] overriding = pacmanM3.methodOverrides;
+	
+	graph g = {};
+	
+	for(<container, content> <- contains){
+		if(container in packages) {
+			if(content in classes) {
+				g += <class(container), dType(), method(content)>;
+				//TODO: Add virtual calls
+			}
+			else {
+				g += <interface(container), dType(), method(content)>;
+			}
+		}
+	}
+	
+	for(<invoker, calledFunction> <- calls) {
+		if(isConstructor(invoker)) {
+			//loc containingClass = 
+			if(invoker in interfaces) {
+				g += <interface(invoker), call(), method(calledFunction)>;
+			}
+			else {
+				g += <class(invoker), call(), method(calledFunction)>;
+			}
+		}
+		else {
+			g += <method(invoker), call(), method(calledFunction)>;
+		}
+	}
+	text(g);
+	return g;
+}
+
+[num, num] calculateClassCoverage(graph g, M3 pacmanM3, loc coverClass) {
+	set[method] classMethods = {to | <from, label, to> <- g, from == class(coverClass) || from == interface(coverClass) };
+	set[method] testMethods = getTestMethods(pacmanM3);
+	set[method] reachedMethods = {};
+	
+	reachedMethods = toSet([tested | testMethod <- testMethods, tested <- classMethods, <testMethod, call(), tested> in g]);
+	return [size(reachedMethods), size(classMethods)];
+}
+
+[num, num] calculatePackageCoverage(graph g, M3 pacmanM3, loc coverPackage) {
+	for(<from, label, to> <- g) {
+		if(label == dMethod()) { //TODO: Exclude test classes
+			calculateClassCoverage(g, pacmanM3, from);
+		}
+	}
+}
+
+num calculateSystemCoverage(graph g, M3 pacmanM3) {
+	for(<from, label, to> <- g) {
+		if(label == dType()) { //TODO:Exclude test packages
+			calculatePackageCoverage(g, pacmanM3, from);
+		}
+	}
+}
+
+void printSystemCoverage(graph g) {
+	
+}
+
+void printPackageCoverage(graph g) {
+	
+}
+
+void printClassCoverage(graph g, M3 pacmanM3) {
+	map[loc, num] coverage = [];
+	set[loc] classes = classes(pacmanM3);
+	productionClasses = {c | c <- classes, !contains(c.src.path, "/test/")};
+	for(productionClass <- productionClasses) {
+		coverage += [productionClass, calculateClassCoverage(g, pacmanM3, productionClass)];
+	}
+	text(coverage);
+}
+
+void main(){
+	M3 jpacmanM3() = createM3FromEclipseProject(|project://jpacman-framework|);
+	graph g = transitiveClosure(createCallGraph(jpacmanM3()));
+	//printSystemCoverage(g);
+	printClassCoverage(g, jpacmanM3());
+	//printPackageCoverage(g);
+}
