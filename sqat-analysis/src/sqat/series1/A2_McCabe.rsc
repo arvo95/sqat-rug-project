@@ -52,13 +52,13 @@ CC cc(set[Declaration] decls) {
     CC result = {};
     visit (decls) {
         case m:\method(_, _, _, _, Statement body): {
-            result[m.src] = calculateCC(body);
+            result[m.src] = calculateComplexity(body);
         }
     }
     return result;
 }
 
-int calculateCC(Statement body) {
+int calculateComplexity(Statement body) {
     int count = 1;
     visit (body) {
         case s:\if(_, _, _): count += 1; // if with else
@@ -85,7 +85,7 @@ CCDist ccDist(CC cc) {
     // to be done
 }
 
-void q() {
+void answers() {
 	int complexityAll = 0;
 	int methodsComplexity = 0;
 	loc file;
@@ -113,7 +113,7 @@ rel[str methodName, int cc] testResults() {
 
 	visit({ createAstFromFile(|project://sqat-analysis/src/sqat/series1/A2_test.java|, true) }) {
 		case m: \method(_, name, _, _, body):
-			result += <name, calculateCC(body)>;
+			result += <name, calculateComplexity(body)>;
 	}
 
 	return result;
